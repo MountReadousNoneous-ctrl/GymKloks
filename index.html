@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gym Clock</title>
+<meta name="description" content="A distraction-free gym clock with stopwatch, countdown, and custom interval timers, built for a stand-alone TV display.">
+<meta name="theme-color" content="#101113">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #101113;
+    --bg-deep: #0a0b0c;
+    --panel: #1a1c1e;
+    --panel-2: #212326;
+    --line: #2c2f33;
+    --text: #f3efe6;
+    --text-dim: #8b9096;
+    --text-faint: #5b6065;
+    --accent: #ff7a1e;
+    --accent-dim: #6b3c17;
+    --rest: #46b8ab;
+    --rest-dim: #1f4844;
+    --danger: #ff4d4d;
+    --focus: #ffd166;
+  }
+
+  *,*::before,*::after{ box-sizing: border-box; }
+
+  html,body{
+    height:100%;
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family:'Oswald', sans-serif;
+    overflow:hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select:none;
+  }
+
+  body{
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 20%, rgba(255,122,30,0.05), transparent 60%),
+      radial-gradient(ellipse 120% 90% at 50% 100%, rgba(0,0,0,0.5), transparent 60%),
+      var(--bg);
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    height:100dvh;
+    padding: 3.5vh 3vw 0;
+  }
+
+  body.idle{ cursor:none; }
+
+  /* ---------- Stage ---------- */
+
+  .stage{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:0;
+    gap: clamp(0.8rem, 2.4vh, 2rem);
+    text-align:center;
+  }
+
+  .wordmark{
+    display:flex;
+    align-items:center;
+    gap: clamp(0.8rem, 1.6vw, 1.8rem);
+    color: var(--text-dim);
+  }
+  .wordmark h1{
+    margin:0;
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size: clamp(1rem, 2.1vw, 1.9rem);
+    letter-spacing: 0.55em;
+    text-indent: 0.55em;
+    text-transform:uppercase;
+    color: var(--text-dim);
+  }
+  .wordmark .rule{
+    width: clamp(24px, 5vw, 90px);
+    height:2px;
+    background: linear-gradient(90deg, transparent, var(--text-faint));
+  }
+  .wordmark .rule.right{ background: linear-gradient(90deg, var(--text-faint), transparent); }
+
+  .display-wrap{
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:100%;
+  }
+
+  .display{
+    font-family:'Anton', sans-serif;
+    font-weight:400;
+    font-size: clamp(5rem, 24vw, 19rem);
+    line-height:0.92;
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+    transition: color 220ms ease;
+    white-space:nowrap;
+  }
+  .display.compact{ font-size: clamp(4rem, 18vw, 14rem); }
+  .display.phase-work{ color: var(--accent); }
+  .display.phase-rest{ color: var(--rest); }
+  .display.phase-prep{ color: var(--text-dim); }
+  .display.warn{ color: var(--danger); animation: pulse 1s steps(2) infinite; }
+  .display .ampm{
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size: 0.16em;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    vertical-align: middle;
+    margin-left: 0.15em;
+  }
+
+  @keyframes pulse{ 50%{ opacity:0.35; } }
+
+  .status{
+    min-height: clamp(1.6rem, 3.2vh, 2.6rem);
+    font-size: clamp(1rem, 2.4vw, 1.7rem);
+    font-weight:600;
+    letter-spacing:0.3em;
+    text-indent:0.3em;
+    text-transform:uppercase;
+    color: var(--text-dim);
+  }
+  .status .work{ color: var(--accent); }
+  .status .rest{ color: var(--rest); }
+  .status .round{ color: var(--text-faint); margin-left: 0.4em; }
+
+  /* ---------- Dock ---------- */
+
+  .dock{
+    flex-shrink:0;
+    display:flex;
+    flex-direction:column;
+    gap: 14px;
+    padding: 16px clamp(12px, 2.5vw, 34px) calc(16px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,0.35) 30%);
+    transition: opacity 420ms ease, transform 420ms ease;
+  }
+  .dock.hidden{
+    opacity:0;
+    transform: translateY(14px);
+    pointer-events:none;
+  }
+
+  .tabs{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+  }
+  .tab{
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size: clamp(0.75rem, 1.1vw, 0.95rem);
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color: var(--text-dim);
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding: 10px 22px;
+    cursor:pointer;
+    transition: all 160ms ease;
+  }
+  .tab:hover{ color: var(--text); border-color:#3a3d41; }
+  .tab.active{ color: var(--bg-deep); background: var(--text); border-color: var(--text); }
+  .tab:focus-visible, .btn:focus-visible, .icon-btn:focus-visible, .chip:focus-visible, .step-btn:focus-visible{
+    outline:3px solid var(--focus);
+    outline-offset:2px;
+  }
+
+  .config{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap: 10px 12px;
+    min-height: 52px;
+  }
+  .config[hidden]{ display:none; }
+
+  .chip{
+    font-family:'Oswald', sans-serif;
+    font-size: clamp(0.72rem, 1vw, 0.88rem);
+    letter-spacing:0.08em;
+    color: var(--text-dim);
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding: 9px 14px;
+    cursor:pointer;
+    transition: all 140ms ease;
+  }
+  .chip:hover{ color: var(--text); border-color:#3a3d41; }
+  .chip.active{ color: var(--accent); border-color: var(--accent-dim); background:#22190f; }
+
+  .stepper{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding: 6px 8px;
+  }
+  .stepper .label{
+    font-size: clamp(0.68rem, 0.95vw, 0.82rem);
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color: var(--text-faint);
+    padding: 0 4px 0 6px;
+  }
+  .step-btn{
+    width:34px; height:34px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    background: var(--panel-2);
+    color: var(--text);
+    font-size:1.1rem;
+    line-height:1;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .step-btn:hover{ border-color: var(--accent-dim); color: var(--accent); }
+  .step-btn:active{ transform: scale(0.92); }
+  .stepper .value{
+    min-width: 64px;
+    text-align:center;
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-variant-numeric: tabular-nums;
+    font-size: 1rem;
+    color: var(--text);
+  }
+
+  .actions{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+  }
+  .dock.mode-clock #startBtn, .dock.mode-clock #resetBtn{ display:none; }
+  .btn{
+    font-family:'Oswald', sans-serif;
+    font-weight:700;
+    font-size: clamp(0.85rem, 1.3vw, 1.05rem);
+    letter-spacing:0.16em;
+    text-transform:uppercase;
+    border-radius:10px;
+    padding: 15px 40px;
+    cursor:pointer;
+    border:1px solid transparent;
+    transition: transform 120ms ease, filter 120ms ease;
+  }
+  .btn:active{ transform: scale(0.97); }
+  .btn.primary{ background: var(--accent); color:#231205; }
+  .btn.primary:hover{ filter:brightness(1.08); }
+  .btn.primary.running{ background: var(--panel-2); color: var(--text); border-color: var(--line); }
+  .btn.ghost{ background: transparent; color: var(--text-dim); border-color: var(--line); }
+  .btn.ghost:hover{ color: var(--text); border-color:#3a3d41; }
+
+  .icon-btn{
+    width:48px; height:48px;
+    border-radius:10px;
+    background: var(--panel);
+    border:1px solid var(--line);
+    color: var(--text-dim);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .icon-btn:hover{ color: var(--text); border-color:#3a3d41; }
+  .icon-btn svg{ width:20px; height:20px; }
+  .icon-btn[data-muted="true"] .icon-on{ display:none; }
+  .icon-btn[data-muted="false"] .icon-off{ display:none; }
+
+  .hint{
+    text-align:center;
+    font-size: clamp(0.7rem, 0.95vw, 0.85rem);
+    letter-spacing:0.1em;
+    color: var(--text-faint);
+  }
+
+  @media (max-width: 620px){
+    .display{ font-size: clamp(3.4rem, 20vw, 8rem); }
+    .btn{ padding: 13px 26px; }
+  }
+</style>
+</head>
+<body>
+
+  <main class="stage">
+    <header class="wordmark">
+      <span class="rule left"></span>
+      <h1>Gym Clock</h1>
+      <span class="rule right"></span>
+    </header>
+
+    <div class="display-wrap">
+      <div id="display" class="display" aria-live="polite">00:00</div>
+    </div>
+
+    <div id="status" class="status"></div>
+  </main>
+
+  <nav id="dock" class="dock" aria-label="Clock controls">
+
+    <div class="tabs" role="tablist" aria-label="Clock mode">
+      <button class="tab" data-mode="clock" role="tab">Clock</button>
+      <button class="tab" data-mode="stopwatch" role="tab">Stopwatch</button>
+      <button class="tab" data-mode="countdown" role="tab">Countdown</button>
+      <button class="tab" data-mode="interval" role="tab">Intervals</button>
+    </div>
+
+    <div class="config" id="config-clock" hidden>
+      <span class="hint">Showing the current time. Choose a mode to start training.</span>
+    </div>
+
+    <div class="config" id="config-stopwatch" hidden>
+      <span class="hint">Counts up from zero. Space to start, R to reset.</span>
+    </div>
+
+    <div class="config" id="config-countdown" hidden>
+      <button class="chip" data-preset="60">1:00</button>
+      <button class="chip" data-preset="180">3:00</button>
+      <button class="chip" data-preset="300">5:00</button>
+      <button class="chip" data-preset="600">10:00</button>
+      <button class="chip" data-preset="900">15:00</button>
+      <button class="chip" data-preset="1200">20:00</button>
+      <div class="stepper">
+        <span class="label">Adjust</span>
+        <button class="step-btn" id="cd-minus" aria-label="Subtract 15 seconds">−</button>
+        <span class="value" id="cd-fine">0:15</span>
+        <button class="step-btn" id="cd-plus" aria-label="Add 15 seconds">+</button>
+      </div>
+    </div>
+
+    <div class="config" id="config-interval">
+      <div class="stepper">
+        <span class="label">Work</span>
+        <button class="step-btn" data-adj="work" data-delta="-5">−</button>
+        <span class="value" id="iv-work">0:40</span>
+        <button class="step-btn" data-adj="work" data-delta="5">+</button>
+      </div>
+      <div class="stepper">
+        <span class="label">Rest</span>
+        <button class="step-btn" data-adj="rest" data-delta="-5">−</button>
+        <span class="value" id="iv-rest">0:20</span>
+        <button class="step-btn" data-adj="rest" data-delta="5">+</button>
+      </div>
+      <div class="stepper">
+        <span class="label">Rounds</span>
+        <button class="step-btn" data-adj="rounds" data-delta="-1">−</button>
+        <span class="value" id="iv-rounds">8</span>
+        <button class="step-btn" data-adj="rounds" data-delta="1">+</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="muteBtn" class="icon-btn" data-muted="false" aria-label="Toggle sound">
+        <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="4 8 9 8 13 4 13 20 9 16 4 16 4 8"></polygon><path d="M16.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 6a8.5 8.5 0 0 1 0 12"></path></svg>
+        <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="4 8 9 8 13 4 13 20 9 16 4 16 4 8"></polygon><line x1="17" y1="8" x2="23" y2="14"></line><line x1="23" y1="8" x2="17" y2="14"></line></svg>
+      </button>
+
+      <button id="resetBtn" class="btn ghost">Reset</button>
+      <button id="startBtn" class="btn primary">Start</button>
+
+      <button id="fsBtn" class="icon-btn" aria-label="Toggle fullscreen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>
+      </button>
+    </div>
+
+    <div class="hint">Space start/pause &nbsp;·&nbsp; R reset &nbsp;·&nbsp; 1 / 2 / 3 / 4 mode &nbsp;·&nbsp; F fullscreen &nbsp;·&nbsp; M mute</div>
+  </nav>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "gym-clock-settings-v1";
+
+  var els = {
+    display: document.getElementById("display"),
+    status: document.getElementById("status"),
+    dock: document.getElementById("dock"),
+    tabs: Array.prototype.slice.call(document.querySelectorAll(".tab")),
+    configs: {
+      clock: document.getElementById("config-clock"),
+      stopwatch: document.getElementById("config-stopwatch"),
+      countdown: document.getElementById("config-countdown"),
+      interval: document.getElementById("config-interval")
+    },
+    startBtn: document.getElementById("startBtn"),
+    resetBtn: document.getElementById("resetBtn"),
+    muteBtn: document.getElementById("muteBtn"),
+    fsBtn: document.getElementById("fsBtn"),
+    cdFine: document.getElementById("cd-fine"),
+    cdMinus: document.getElementById("cd-minus"),
+    cdPlus: document.getElementById("cd-plus"),
+    ivWork: document.getElementById("iv-work"),
+    ivRest: document.getElementById("iv-rest"),
+    ivRounds: document.getElementById("iv-rounds"),
+    presetChips: Array.prototype.slice.call(document.querySelectorAll(".chip[data-preset]")),
+    adjBtns: Array.prototype.slice.call(document.querySelectorAll(".step-btn[data-adj]"))
+  };
+
+  function loadSettings(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return {};
+      return JSON.parse(raw);
+    }catch(e){ return {}; }
+  }
+  function saveSettings(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        muted: state.muted,
+        countdownTotal: state.countdown.total,
+        workSeconds: state.interval.workSeconds,
+        restSeconds: state.interval.restSeconds,
+        rounds: state.interval.rounds
+      }));
+    }catch(e){}
+  }
+
+  var saved = loadSettings();
+
+  var state = {
+    mode: "clock",
+    running: false,
+    muted: !!saved.muted,
+    stopwatch: { elapsedMs: 0, startedAt: 0 },
+    countdown: {
+      total: typeof saved.countdownTotal === "number" ? saved.countdownTotal : 300,
+      remainingMs: 0,
+      endAt: 0,
+      warned: {}
+    },
+    interval: {
+      workSeconds: typeof saved.workSeconds === "number" ? saved.workSeconds : 40,
+      restSeconds: typeof saved.restSeconds === "number" ? saved.restSeconds : 20,
+      rounds: typeof saved.rounds === "number" ? saved.rounds : 8,
+      prepSeconds: 10,
+      phase: "prep",
+      currentRound: 1,
+      remainingMs: 0,
+      endAt: 0,
+      warned: {}
+    }
+  };
+  state.countdown.remainingMs = state.countdown.total * 1000;
+  state.interval.remainingMs = state.interval.prepSeconds * 1000;
+
+  /* ---------- Audio ---------- */
+
+  var audioCtx = null;
+  function ctx(){
+    if(!audioCtx){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+    }
+    if(audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+  function beep(freq, duration, gainLevel){
+    if(state.muted) return;
+    var c = ctx();
+    var osc = c.createOscillator();
+    var gain = c.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    gain.gain.value = gainLevel || 0.18;
+    osc.connect(gain);
+    gain.connect(c.destination);
+    var now = c.currentTime;
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc.start(now);
+    osc.stop(now + duration);
+  }
+  function tick(){ beep(720, 0.09, 0.14); }
+  function go(){ beep(1180, 0.35, 0.2); }
+  function rest(){ beep(420, 0.3, 0.16); }
+  function done(){ beep(880, 0.16, 0.2); setTimeout(function(){ beep(1320, 0.4, 0.22); }, 180); }
+
+  /* ---------- Wake lock ---------- */
+
+  var wakeLock = null;
+  function requestWakeLock(){
+    if("wakeLock" in navigator){
+      navigator.wakeLock.request("screen").then(function(lock){ wakeLock = lock; }).catch(function(){});
+    }
+  }
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState === "visible" && state.running) requestWakeLock();
+  });
+
+  /* ---------- Formatting ---------- */
+
+  function pad(n){ return n < 10 ? "0" + n : "" + n; }
+
+  function formatClock(totalSeconds){
+    totalSeconds = Math.max(0, Math.ceil(totalSeconds));
+    var h = Math.floor(totalSeconds / 3600);
+    var m = Math.floor((totalSeconds % 3600) / 60);
+    var s = totalSeconds % 60;
+    if(h > 0) return h + ":" + pad(m) + ":" + pad(s);
+    return pad(m) + ":" + pad(s);
+  }
+
+  function formatStopwatch(ms){
+    var totalMs = Math.max(0, ms);
+    var totalSeconds = Math.floor(totalMs / 1000);
+    var h = Math.floor(totalSeconds / 3600);
+    var m = Math.floor((totalSeconds % 3600) / 60);
+    var s = totalSeconds % 60;
+    var tenths = Math.floor((totalMs % 1000) / 100);
+    var base = h > 0 ? (h + ":" + pad(m) + ":" + pad(s)) : (pad(m) + ":" + pad(s));
+    return base + "." + tenths;
+  }
+
+  function formatMinSec(totalSeconds){
+    var m = Math.floor(totalSeconds / 60);
+    var s = totalSeconds % 60;
+    return m + ":" + pad(s);
+  }
+
+  var WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  function formatTimeOfDay(date){
+    var h24 = date.getHours();
+    var ampm = h24 >= 12 ? "PM" : "AM";
+    var h12 = h24 % 12;
+    if(h12 === 0) h12 = 12;
+    return { time: h12 + ":" + pad(date.getMinutes()) + ":" + pad(date.getSeconds()), ampm: ampm };
+  }
+
+  function formatDateLine(date){
+    return WEEKDAYS[date.getDay()] + ", " + MONTHS[date.getMonth()] + " " + date.getDate();
+  }
+
+  /* ---------- Rendering ---------- */
+
+  function setStatus(html, extraClass){
+    els.status.innerHTML = html || "";
+  }
+
+  function render(){
+    els.display.classList.remove("phase-work", "phase-rest", "phase-prep", "warn", "compact");
+
+    if(state.mode === "clock"){
+      var now = new Date();
+      var tod = formatTimeOfDay(now);
+      els.display.innerHTML = tod.time + "<span class=\"ampm\">" + tod.ampm + "</span>";
+      setStatus(formatDateLine(now));
+    }
+
+    else if(state.mode === "stopwatch"){
+      var text = formatStopwatch(state.stopwatch.elapsedMs);
+      els.display.textContent = text;
+      if(text.length > 7) els.display.classList.add("compact");
+      setStatus(state.running ? "Running" : (state.stopwatch.elapsedMs > 0 ? "Paused" : "Ready"));
+    }
+
+    else if(state.mode === "countdown"){
+      var remSec = state.countdown.remainingMs / 1000;
+      els.display.textContent = formatClock(remSec);
+      if(remSec <= 10 && remSec > 0) els.display.classList.add("warn");
+      if(remSec <= 0){
+        setStatus("Time&rsquo;s up");
+      } else {
+        setStatus(state.running ? "Counting down" : "Ready &mdash; " + formatMinSec(state.countdown.total) + " set");
+      }
+    }
+
+    else if(state.mode === "interval"){
+      var iv = state.interval;
+      var remSec = iv.remainingMs / 1000;
+      els.display.textContent = formatClock(remSec);
+      var label = "";
+      if(iv.phase === "prep"){
+        els.display.classList.add("phase-prep");
+        label = "Get ready";
+      } else if(iv.phase === "work"){
+        els.display.classList.add("phase-work");
+        label = "<span class=\"work\">Work</span>";
+      } else if(iv.phase === "rest"){
+        els.display.classList.add("phase-rest");
+        label = "<span class=\"rest\">Rest</span>";
+      } else if(iv.phase === "done"){
+        label = "Complete";
+      }
+      if(remSec <= 3 && remSec > 0 && iv.phase !== "prep") els.display.classList.add("warn");
+      if(iv.phase === "work" || iv.phase === "rest"){
+        label += "<span class=\"round\">Round " + iv.currentRound + " / " + iv.rounds + "</span>";
+      }
+      setStatus(label);
+    }
+
+    els.startBtn.textContent = state.running ? "Pause" : "Start";
+    els.startBtn.classList.toggle("running", state.running);
+    els.muteBtn.setAttribute("data-muted", state.muted ? "true" : "false");
+
+    document.title = (state.mode === "clock" ? formatTimeOfDay(new Date()).time :
+                       state.mode === "stopwatch" ? formatStopwatch(state.stopwatch.elapsedMs) :
+                       state.mode === "countdown" ? formatClock(state.countdown.remainingMs/1000) :
+                       formatClock(state.interval.remainingMs/1000)) + " · Gym Clock";
+  }
+
+  function renderConfig(){
+    els.cdFine.textContent = formatMinSec(state.countdown.total);
+    els.ivWork.textContent = formatMinSec(state.interval.workSeconds);
+    els.ivRest.textContent = formatMinSec(state.interval.restSeconds);
+    els.ivRounds.textContent = String(state.interval.rounds);
+
+    els.presetChips.forEach(function(chip){
+      chip.classList.toggle("active", Number(chip.getAttribute("data-preset")) === state.countdown.total);
+    });
+  }
+
+  function switchTabsUI(){
+    els.tabs.forEach(function(tab){
+      var active = tab.getAttribute("data-mode") === state.mode;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    Object.keys(els.configs).forEach(function(key){
+      els.configs[key].hidden = (key !== state.mode) || state.running;
+    });
+    els.dock.classList.toggle("mode-clock", state.mode === "clock");
+  }
+
+  /* ---------- Timer loop ---------- */
+
+  var rafId = null;
+  var clockTimer = null;
+
+  function scheduleClockTick(){
+    if(state.mode !== "clock") return;
+    render();
+    var delay = 1000 - (Date.now() % 1000);
+    clockTimer = setTimeout(scheduleClockTick, delay);
+  }
+
+  function stopClockTick(){
+    clearTimeout(clockTimer);
+    clockTimer = null;
+  }
+
+  function loop(){
+    if(!state.running){ rafId = null; return; }
+
+    if(state.mode === "stopwatch"){
+      state.stopwatch.elapsedMs = Date.now() - state.stopwatch.startedAt;
+    }
+
+    else if(state.mode === "countdown"){
+      var rem = state.countdown.endAt - Date.now();
+      if(rem <= 0){
+        state.countdown.remainingMs = 0;
+        state.running = false;
+        done();
+        render();
+        switchTabsUI();
+        showDock();
+        saveSettings();
+        return;
+      }
+      var remSecInt = Math.ceil(rem / 1000);
+      if(remSecInt <= 3 && !state.countdown.warned[remSecInt]){
+        state.countdown.warned[remSecInt] = true;
+        tick();
+      }
+      state.countdown.remainingMs = rem;
+    }
+
+    else if(state.mode === "interval"){
+      var iv = state.interval;
+      var remI = iv.endAt - Date.now();
+      if(remI <= 0){
+        advanceIntervalPhase();
+        rafId = requestAnimationFrame(loop);
+        return;
+      }
+      var remIntSec = Math.ceil(remI / 1000);
+      if(remIntSec <= 3 && iv.phase !== "prep" && !iv.warned[iv.phase + iv.currentRound + remIntSec]){
+        iv.warned[iv.phase + iv.currentRound + remIntSec] = true;
+        tick();
+      }
+      if(remIntSec <= 3 && iv.phase === "prep" && !iv.warned["prep" + remIntSec]){
+        iv.warned["prep" + remIntSec] = true;
+        tick();
+      }
+      iv.remainingMs = remI;
+    }
+
+    render();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function advanceIntervalPhase(){
+    var iv = state.interval;
+    if(iv.phase === "prep"){
+      iv.phase = "work";
+      iv.currentRound = 1;
+      iv.remainingMs = iv.workSeconds * 1000;
+      iv.endAt = Date.now() + iv.remainingMs;
+      go();
+    } else if(iv.phase === "work"){
+      if(iv.currentRound >= iv.rounds){
+        iv.phase = "done";
+        state.running = false;
+        done();
+        render();
+        switchTabsUI();
+        showDock();
+        saveSettings();
+        return;
+      }
+      iv.phase = "rest";
+      iv.remainingMs = iv.restSeconds * 1000;
+      iv.endAt = Date.now() + iv.remainingMs;
+      rest();
+    } else if(iv.phase === "rest"){
+      iv.currentRound += 1;
+      iv.phase = "work";
+      iv.remainingMs = iv.workSeconds * 1000;
+      iv.endAt = Date.now() + iv.remainingMs;
+      go();
+    }
+  }
+
+  function startLoop(){
+    if(rafId === null) rafId = requestAnimationFrame(loop);
+  }
+
+  /* ---------- Actions ---------- */
+
+  function resetMode(mode){
+    if(mode === "stopwatch"){
+      state.stopwatch.elapsedMs = 0;
+      state.stopwatch.startedAt = 0;
+    } else if(mode === "countdown"){
+      state.countdown.remainingMs = state.countdown.total * 1000;
+      state.countdown.warned = {};
+    } else if(mode === "interval"){
+      state.interval.phase = "prep";
+      state.interval.currentRound = 1;
+      state.interval.remainingMs = state.interval.prepSeconds * 1000;
+      state.interval.warned = {};
+    }
+  }
+
+  function toggleStart(){
+    if(state.mode === "clock") return;
+    ctx();
+    if(state.running){
+      state.running = false;
+      if(state.mode === "stopwatch"){
+        state.stopwatch.elapsedMs = Date.now() - state.stopwatch.startedAt;
+      }
+    } else {
+      state.running = true;
+      requestWakeLock();
+      if(state.mode === "stopwatch"){
+        state.stopwatch.startedAt = Date.now() - state.stopwatch.elapsedMs;
+      } else if(state.mode === "countdown"){
+        if(state.countdown.remainingMs <= 0) state.countdown.remainingMs = state.countdown.total * 1000;
+        state.countdown.endAt = Date.now() + state.countdown.remainingMs;
+      } else if(state.mode === "interval"){
+        if(state.interval.phase === "done") resetMode("interval");
+        state.interval.endAt = Date.now() + state.interval.remainingMs;
+      }
+      startLoop();
+    }
+    render();
+    switchTabsUI();
+  }
+
+  function setMode(mode){
+    if(state.mode === mode) return;
+    state.running = false;
+    state.mode = mode;
+    stopClockTick();
+    render();
+    switchTabsUI();
+    renderConfig();
+    saveSettings();
+    if(mode === "clock") scheduleClockTick();
+  }
+
+  function doReset(){
+    if(state.mode === "clock") return;
+    state.running = false;
+    resetMode(state.mode);
+    render();
+    switchTabsUI();
+  }
+
+  /* ---------- Idle dock hiding ---------- */
+
+  var idleTimer = null;
+  function showDock(){
+    els.dock.classList.remove("hidden");
+    document.body.classList.remove("idle");
+    clearTimeout(idleTimer);
+    if(state.running || state.mode === "clock"){
+      idleTimer = setTimeout(function(){
+        els.dock.classList.add("hidden");
+        document.body.classList.add("idle");
+      }, 4500);
+    }
+  }
+
+  ["mousemove", "keydown", "touchstart", "click"].forEach(function(evt){
+    document.addEventListener(evt, showDock, { passive: true });
+  });
+
+  /* ---------- Wiring ---------- */
+
+  els.tabs.forEach(function(tab){
+    tab.addEventListener("click", function(){ setMode(tab.getAttribute("data-mode")); });
+  });
+
+  els.startBtn.addEventListener("click", toggleStart);
+  els.resetBtn.addEventListener("click", doReset);
+
+  els.muteBtn.addEventListener("click", function(){
+    state.muted = !state.muted;
+    render();
+    saveSettings();
+  });
+
+  els.fsBtn.addEventListener("click", function(){
+    if(!document.fullscreenElement){
+      document.documentElement.requestFullscreen().catch(function(){});
+    } else {
+      document.exitFullscreen().catch(function(){});
+    }
+  });
+
+  els.presetChips.forEach(function(chip){
+    chip.addEventListener("click", function(){
+      state.countdown.total = Number(chip.getAttribute("data-preset"));
+      resetMode("countdown");
+      render();
+      renderConfig();
+      saveSettings();
+    });
+  });
+
+  els.cdMinus.addEventListener("click", function(){
+    state.countdown.total = Math.max(15, state.countdown.total - 15);
+    resetMode("countdown");
+    render();
+    renderConfig();
+    saveSettings();
+  });
+  els.cdPlus.addEventListener("click", function(){
+    state.countdown.total = Math.min(3600 * 3, state.countdown.total + 15);
+    resetMode("countdown");
+    render();
+    renderConfig();
+    saveSettings();
+  });
+
+  els.adjBtns.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var key = btn.getAttribute("data-adj");
+      var delta = Number(btn.getAttribute("data-delta"));
+      if(key === "work"){
+        state.interval.workSeconds = Math.max(5, Math.min(3600, state.interval.workSeconds + delta));
+      } else if(key === "rest"){
+        state.interval.restSeconds = Math.max(0, Math.min(3600, state.interval.restSeconds + delta));
+      } else if(key === "rounds"){
+        state.interval.rounds = Math.max(1, Math.min(99, state.interval.rounds + delta));
+      }
+      resetMode("interval");
+      render();
+      renderConfig();
+      saveSettings();
+    });
+  });
+
+  document.addEventListener("keydown", function(e){
+    if(e.code === "Space"){ e.preventDefault(); toggleStart(); }
+    else if(e.key === "r" || e.key === "R"){ doReset(); }
+    else if(e.key === "1"){ setMode("clock"); }
+    else if(e.key === "2"){ setMode("stopwatch"); }
+    else if(e.key === "3"){ setMode("countdown"); }
+    else if(e.key === "4"){ setMode("interval"); }
+    else if(e.key === "f" || e.key === "F"){ els.fsBtn.click(); }
+    else if(e.key === "m" || e.key === "M"){ els.muteBtn.click(); }
+  });
+
+  /* ---------- Init ---------- */
+
+  switchTabsUI();
+  renderConfig();
+  render();
+  showDock();
+  if(state.mode === "clock") scheduleClockTick();
+})();
+</script>
+</body>
+</html>
