@@ -3,14 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- This tells Samsung Internet to disable forced color transformation -->
 <title>Gym Clock</title>
 <meta name="description" content="A distraction-free gym clock with stopwatch, countdown, and custom interval timers, built for a stand-alone TV display.">
 <meta name="theme-color" content="#101113">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Tells Samsung Internet & mobile browsers to retain native dark theme styling -->
 <meta name="color-scheme" content="dark">
+
 <style>
   :root{
     color-scheme: dark;
@@ -52,7 +54,7 @@
     flex-direction:column;
     height:100vh;
     height:100dvh;
-    padding: 3.5vh 3vw 0;
+    padding: 1vh 2vw 0;
   }
 
   body.idle{ cursor:none; }
@@ -66,7 +68,7 @@
     align-items:center;
     justify-content:center;
     min-height:0;
-    gap: clamp(0.8rem, 2.4vh, 2rem);
+    gap: clamp(0.2rem, 1vh, 1rem);
     text-align:center;
   }
 
@@ -80,7 +82,7 @@
     margin:0;
     font-family:'Oswald', sans-serif;
     font-weight:600;
-    font-size: clamp(1rem, 2.1vw, 1.9rem);
+    font-size: clamp(0.9rem, 1.8vw, 1.5rem);
     letter-spacing: 0.55em;
     text-indent: 0.55em;
     text-transform:uppercase;
@@ -104,15 +106,15 @@
   .display{
     font-family:'Anton', sans-serif;
     font-weight:400;
-    font-size: clamp(5rem, 24vw, 19rem);
-    line-height:0.92;
+    font-size: clamp(7rem, 30vw, 28rem);
+    line-height:0.85;
     letter-spacing: 0.01em;
     font-variant-numeric: tabular-nums;
     color: var(--text);
     transition: color 220ms ease;
     white-space:nowrap;
   }
-  .display.compact{ font-size: clamp(4rem, 18vw, 14rem); }
+  .display.compact{ font-size: clamp(5rem, 22vw, 20rem); }
   .display.phase-work{ color: var(--accent); }
   .display.phase-rest{ color: var(--rest); }
   .display.phase-prep{ color: var(--text-dim); }
@@ -130,8 +132,8 @@
   @keyframes pulse{ 50%{ opacity:0.35; } }
 
   .status{
-    min-height: clamp(1.6rem, 3.2vh, 2.6rem);
-    font-size: clamp(1rem, 2.4vw, 1.7rem);
+    min-height: clamp(1.4rem, 2.8vh, 2.2rem);
+    font-size: clamp(0.9rem, 2vw, 1.5rem);
     font-weight:600;
     letter-spacing:0.3em;
     text-indent:0.3em;
@@ -148,8 +150,8 @@
     flex-shrink:0;
     display:flex;
     flex-direction:column;
-    gap: 14px;
-    padding: 16px clamp(12px, 2.5vw, 34px) calc(16px + env(safe-area-inset-bottom, 0px));
+    gap: 10px;
+    padding: 12px clamp(12px, 2.5vw, 34px) calc(12px + env(safe-area-inset-bottom, 0px));
     background: linear-gradient(180deg, transparent, rgba(0,0,0,0.35) 30%);
     transition: opacity 420ms ease, transform 420ms ease;
   }
@@ -174,7 +176,7 @@
     background: var(--panel);
     border:1px solid var(--line);
     border-radius:999px;
-    padding: 10px 22px;
+    padding: 8px 20px;
     cursor:pointer;
     transition: all 160ms ease;
   }
@@ -190,8 +192,8 @@
     align-items:center;
     justify-content:center;
     flex-wrap:wrap;
-    gap: 10px 12px;
-    min-height: 52px;
+    gap: 8px 10px;
+    min-height: 44px;
   }
   .config[hidden]{ display:none; }
 
@@ -203,7 +205,7 @@
     background: var(--panel);
     border:1px solid var(--line);
     border-radius:8px;
-    padding: 9px 14px;
+    padding: 7px 12px;
     cursor:pointer;
     transition: all 140ms ease;
   }
@@ -213,11 +215,11 @@
   .stepper{
     display:flex;
     align-items:center;
-    gap:10px;
+    gap:8px;
     background: var(--panel);
     border:1px solid var(--line);
     border-radius:10px;
-    padding: 6px 8px;
+    padding: 4px 6px;
   }
   .stepper .label{
     font-size: clamp(0.68rem, 0.95vw, 0.82rem);
@@ -227,12 +229,12 @@
     padding: 0 4px 0 6px;
   }
   .step-btn{
-    width:34px; height:34px;
-    border-radius:8px;
+    width:30px; height:30px;
+    border-radius:6px;
     border:1px solid var(--line);
     background: var(--panel-2);
     color: var(--text);
-    font-size:1.1rem;
+    font-size:1rem;
     line-height:1;
     cursor:pointer;
     display:flex; align-items:center; justify-content:center;
@@ -240,12 +242,12 @@
   .step-btn:hover{ border-color: var(--accent-dim); color: var(--accent); }
   .step-btn:active{ transform: scale(0.92); }
   .stepper .value{
-    min-width: 64px;
+    min-width: 56px;
     text-align:center;
     font-family:'Oswald', sans-serif;
     font-weight:600;
     font-variant-numeric: tabular-nums;
-    font-size: 1rem;
+    font-size: 0.95rem;
     color: var(--text);
   }
 
@@ -253,7 +255,7 @@
     display:flex;
     align-items:center;
     justify-content:center;
-    gap:12px;
+    gap:10px;
   }
   .dock.mode-clock #startBtn, .dock.mode-clock #resetBtn{ display:none; }
   .btn{
@@ -263,7 +265,7 @@
     letter-spacing:0.16em;
     text-transform:uppercase;
     border-radius:10px;
-    padding: 15px 40px;
+    padding: 12px 34px;
     cursor:pointer;
     border:1px solid transparent;
     transition: transform 120ms ease, filter 120ms ease;
@@ -276,7 +278,7 @@
   .btn.ghost:hover{ color: var(--text); border-color:#3a3d41; }
 
   .icon-btn{
-    width:48px; height:48px;
+    width:42px; height:42px;
     border-radius:10px;
     background: var(--panel);
     border:1px solid var(--line);
@@ -285,20 +287,20 @@
     cursor:pointer;
   }
   .icon-btn:hover{ color: var(--text); border-color:#3a3d41; }
-  .icon-btn svg{ width:20px; height:20px; }
+  .icon-btn svg{ width:18px; height:18px; }
   .icon-btn[data-muted="true"] .icon-on{ display:none; }
   .icon-btn[data-muted="false"] .icon-off{ display:none; }
 
   .hint{
     text-align:center;
-    font-size: clamp(0.7rem, 0.95vw, 0.85rem);
+    font-size: clamp(0.65rem, 0.85vw, 0.78rem);
     letter-spacing:0.1em;
     color: var(--text-faint);
   }
 
   @media (max-width: 620px){
-    .display{ font-size: clamp(3.4rem, 20vw, 8rem); }
-    .btn{ padding: 13px 26px; }
+    .display{ font-size: clamp(4rem, 24vw, 10rem); }
+    .btn{ padding: 10px 22px; }
   }
 </style>
 </head>
